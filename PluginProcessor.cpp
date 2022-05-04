@@ -8,9 +8,11 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "SynthSound.h"
+#include "SynthVoice.h"
 
 //==============================================================================
-SubSizor6000AudioProcessor::SubSizor6000AudioProcessor()
+APSynthAudioProcessor::APSynthAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -24,17 +26,17 @@ SubSizor6000AudioProcessor::SubSizor6000AudioProcessor()
 {
 }
 
-SubSizor6000AudioProcessor::~SubSizor6000AudioProcessor()
+APSynthAudioProcessor::~APSynthAudioProcessor()
 {
 }
 
 //==============================================================================
-const juce::String SubSizor6000AudioProcessor::getName() const
+const juce::String APSynthAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool SubSizor6000AudioProcessor::acceptsMidi() const
+bool APSynthAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -43,7 +45,7 @@ bool SubSizor6000AudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool SubSizor6000AudioProcessor::producesMidi() const
+bool APSynthAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -52,7 +54,7 @@ bool SubSizor6000AudioProcessor::producesMidi() const
    #endif
 }
 
-bool SubSizor6000AudioProcessor::isMidiEffect() const
+bool APSynthAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -61,50 +63,60 @@ bool SubSizor6000AudioProcessor::isMidiEffect() const
    #endif
 }
 
-double SubSizor6000AudioProcessor::getTailLengthSeconds() const
+double APSynthAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int SubSizor6000AudioProcessor::getNumPrograms()
+int APSynthAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs.
 }
 
-int SubSizor6000AudioProcessor::getCurrentProgram()
+int APSynthAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void SubSizor6000AudioProcessor::setCurrentProgram (int index)
+void APSynthAudioProcessor::setCurrentProgram (int index)
 {
 }
 
-const juce::String SubSizor6000AudioProcessor::getProgramName (int index)
+const juce::String APSynthAudioProcessor::getProgramName (int index)
 {
     return {};
 }
 
-void SubSizor6000AudioProcessor::changeProgramName (int index, const juce::String& newName)
+void APSynthAudioProcessor::changeProgramName (int index, const juce::String& newName)
 {
 }
 
 //==============================================================================
-void SubSizor6000AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void APSynthAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    juce::dsp::ProcessSpec spec; //struct for dsp preparation
+
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.sampleRate = sampleRate;
+    spec.numChannels = juce::AudioProcessor::getMainBusNumOutputChannels();
+
+    osc.prepare(spec); //single oscillator preparation
+    gain.prepare(spec); //gain preparation
+
+    osc.setFrequency(220.0f);
+    gain.setGainLinear(0.01f);
+
 }
 
-void SubSizor6000AudioProcessor::releaseResources()
+void APSynthAudioProcessor::releaseResources()
 {
     // When playback stops, you can use this as an opportunity to free up any
     // spare memory, etc.
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool SubSizor6000AudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool APSynthAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -129,18 +141,18 @@ bool SubSizor6000AudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 }
 #endif
 
-void SubSizor6000AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void APSynthAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
+    juce::dsp::AudioBlock<float> audioBlock { buffer }; //Not a copy of the buffer, just an alias
+
+    osc.process(juce::dsp::ProcessContextReplacing<float> (audioBlock)); //Process the oscillator and store it into the buffer
+    gain.process(juce::dsp::ProcessContextReplacing<float>(audioBlock)); //Gain process
+
+
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
@@ -159,25 +171,25 @@ void SubSizor6000AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 }
 
 //==============================================================================
-bool SubSizor6000AudioProcessor::hasEditor() const
+bool APSynthAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-juce::AudioProcessorEditor* SubSizor6000AudioProcessor::createEditor()
+juce::AudioProcessorEditor* APSynthAudioProcessor::createEditor()
 {
-    return new SubSizor6000AudioProcessorEditor (*this);
+    return new APSynthAudioProcessorEditor (*this);
 }
 
 //==============================================================================
-void SubSizor6000AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void APSynthAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
 }
 
-void SubSizor6000AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void APSynthAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
@@ -187,5 +199,5 @@ void SubSizor6000AudioProcessor::setStateInformation (const void* data, int size
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new SubSizor6000AudioProcessor();
+    return new APSynthAudioProcessor();
 }

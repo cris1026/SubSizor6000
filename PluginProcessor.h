@@ -9,18 +9,16 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "SynthSound.h"
-#include "SynthVoice.h"
 
 //==============================================================================
 /**
 */
-class SubSizor6000AudioProcessor  : public juce::AudioProcessor
+class APSynthAudioProcessor  : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    SubSizor6000AudioProcessor();
-    ~SubSizor6000AudioProcessor() override;
+    APSynthAudioProcessor();
+    ~APSynthAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -56,9 +54,18 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
-    juce::Synthesiser SubSizor;
-
-
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubSizor6000AudioProcessor)
+    juce::dsp::Oscillator<float> osc{ [](float x) { return std::sin(x); }};
+    //Note: oscillator waveform goes after return.
+    // put a look up table for efficiency return [func],[LUT]
+    // 
+    // x / juce::MathConstants<float>::pi // Saw wave
+    // x < 0.0f ? -1.0f : 1.0f // Square wave
+
+
+    juce::dsp::Gain<float> gain;
+
+
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (APSynthAudioProcessor)
 };
