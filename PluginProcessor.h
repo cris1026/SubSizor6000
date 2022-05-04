@@ -57,7 +57,9 @@ public:
 
 private:
     juce::Synthesiser SubSizor;
+    SynthVoice* myVoice;
 
+    double lastSampleRate;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubSizor6000AudioProcessor)

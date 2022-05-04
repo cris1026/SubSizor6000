@@ -11,6 +11,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "SynthSound.h"
+#include <windows.foundation.numerics.h>
 
 class SynthVoice : public juce::SynthesiserVoice
 
@@ -18,14 +19,16 @@ class SynthVoice : public juce::SynthesiserVoice
 public:
     bool canPlaySound (juce::SynthesiserSound* sound)
     {
-
+        return dynamic_cast<SynthSound*>(sound) != nullptr;
     }
 
     //==============================================
 
     void startNote (int midiNoteNumber, float Velocity, juce::SynthesiserSound* sound, int currentPitchWheelPosition)
     {
-
+        
+        freq = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+        std::cout << midiNoteNumber << std::endl;
     }
 
     //==============================================
@@ -57,4 +60,10 @@ public:
     }
 
     //==============================================
+
+
+private:
+    double level;
+    double freq;
+
 };
