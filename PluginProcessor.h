@@ -1,24 +1,21 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include <JuceHeader.h>
+#include <math.h>
+#include <list>
+#include "Voice.h"
 
-//==============================================================================
-/**
-*/
-class APSynthAudioProcessor  : public juce::AudioProcessor
+const int voiceCount = 8;
+
+//reorder methods to follow standard ordering in both this and cpp file
+//(constructor, functional methods, getter/setters (same var together with
+//setter first), tostring)
+class SubSyzorAudioProcessor  : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    APSynthAudioProcessor();
-    ~APSynthAudioProcessor() override;
+    SubSyzorAudioProcessor();
+    ~SubSyzorAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -52,20 +49,65 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
-
+    
+    void setSquareness(int val);
+    void setTriangleness(int val);
+    
+    void setSquareGain(float val);
+    void setTriangleGain(float val);
+    
+    void setVolume(float val){};
+    
 private:
+
+    double currentSampleRate;
+    
+
+    juce::ADSR::Parameters envParams;
+    juce::ADSR::Parameters filterEnvParams;
+    
+    //squareness range: [1,4]
+    float squareness;
+    //triangleness range: [0,4]
+    float triangleness;
+    
+    float squareGain;
+    float triangleGain;
+
+    double doublePi = juce::MathConstants<double>::twoPi;
+
+    voice osc[voiceCount];
+    
+    unsigned int age[voiceCount];
+    
+    juce::AudioBuffer<float> buffer_temp;
+    juce::AudioBuffer<float> buffer_sum;
+
+    juce::dsp::Gain<float> masterVolume;
+    juce::dsp::ProcessSpec spec;
+    
+    //LFO STUFF
+    float lfoPhase;
+    float lfoAmp;
+    float lfoDepth;
+    float lfoFreq;
+    bool lfoActive; //true: active, false: bypass
+    bool lfoSwitch; //true: morph, false: pitch
+    int note[voiceCount];
+
+    float squarenessMod;
+    float trianglenessMod;
+    
+    //PHAZOR
+    bool phazorActive;
+    juce::dsp::Phaser<float> phazor;
+    float phRate;
+    float phDepth;
+    float phCenterFreq;
+    float phFeedback;
+    float phMix;
+    
+
     //==============================================================================
-    juce::dsp::Oscillator<float> osc{ [](float x) { return std::sin(x); }};
-    //Note: oscillator waveform goes after return.
-    // put a look up table for efficiency return [func],[LUT]
-    // 
-    // x / juce::MathConstants<float>::pi // Saw wave
-    // x < 0.0f ? -1.0f : 1.0f // Square wave
-
-
-    juce::dsp::Gain<float> gain;
-
-
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (APSynthAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubSyzorAudioProcessor)
 };
